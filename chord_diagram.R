@@ -17,7 +17,7 @@ showtext_auto()
 
 factors <- c("Human", "Vehicle", "Physical Environment", "Social Environment")
 chord_data <- df %>%
-  filter(stringr::str_detect(Haddon_top_factor, "&")) %>%
+  filter(stringr::str_detect(Haddon_top_factor, "&")) %>% # This drops all single-factor apps 
   mutate(Factor_List = strsplit(Haddon_top_factor, " & ")) %>%
   select(`App name`, Factor_List) %>%
   tidyr::unnest_longer(Factor_List)
@@ -67,11 +67,11 @@ create_chord_plot <- function() {
       circos.axis(h = "top", labels.niceFacing = T)
     }
   )
-  title("Interrelationship of Haddon's Matrix Factors Across Apps", family = "crimson", cex.main = 1.5)
+  #title("Interrelationship of Haddon's Matrix Factors Across Apps", family = "crimson", cex.main = 1.5)
 }
-png(filename = "chord_diagram.png", width = 10, height = 10, units = "in", res = 900)
+png(filename = "fig2_chord_diagram.png", width = 10, height = 10, units = "in", res = 900)
 create_chord_plot()
 dev.off()
-jpeg(filename = "chord_diagram.jpg", width = 10, height = 10, units = "in", res = 900, quality = 100)
+jpeg(filename = "fig2_chord_diagram.jpg", width = 10, height = 10, units = "in", res = 900, quality = 100)
 create_chord_plot()
 dev.off()
