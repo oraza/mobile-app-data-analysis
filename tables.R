@@ -17,7 +17,7 @@ table_category <- df %>%
   mutate(percent = scales::percent(n / sum(n)))
 
 # 2. Overall App Count by Haddon Top Factor
-table_haddon <- df %>%
+table_factor <- df %>%
   count(Haddon_top_factor, sort = TRUE) %>%
   mutate(percent = scales::percent(n / sum(n)))
 
@@ -27,12 +27,12 @@ table_stage <- df %>%
   mutate(percent = scales::percent(n / sum(n)))
 
 # 4. Unified Category × Haddon Top Factor
-table_cat_haddon <- df %>%
+table_cat_factor <- df %>%
   count(UnifiedCategory, Haddon_top_factor) %>%
   tidyr::pivot_wider(names_from = Haddon_top_factor, values_from = n, values_fill = 0)
 
 # 5. Stage × Haddon Top Factor
-table_stage_haddon <- df %>%
+table_stage_factor <- df %>%
   count(Final_Stage, Haddon_top_factor) %>%
   tidyr::pivot_wider(names_from = Haddon_top_factor, values_from = n, values_fill = 0)
 
@@ -56,9 +56,10 @@ table_topfactor_ties <- df %>%
   mutate(num_factors = stringr::str_count(Haddon_top_factor, "&") + 1) %>%
   count(num_factors)
 
-# 9. Three-way: Unified Category × Stage × Haddon Top Factor
-table_cat_stage_haddon <- df %>%
+# 9. Three-way: Unified Category × Stage × Factor
+table_cat_stage_factor <- df %>%
   count(UnifiedCategory, Final_Stage, Haddon_top_factor) %>%
+  mutate(percent = scales::percent(n / sum(n))) %>%
   arrange(desc(n))
 
 # 10. Top Apps per Factor
@@ -70,16 +71,19 @@ table_topapps <- df %>%
 # ---- Save All Tables to Excel ----
 wb <- openxlsx::createWorkbook()
 openxlsx::addWorksheet(wb, "Category_Summary")
-openxlsx::addWorksheet(wb, "Haddon_Summary")
+openxlsx::addWorksheet(wb, "Factor_Summary")
 openxlsx::addWorksheet(wb, "Stage_Summary")
-openxlsx::addWorksheet(wb, "Cat_x_Haddon")
-openxlsx::addWorksheet(wb, "Stage_x_Haddon")
+openxlsx::addWorksheet(wb, "Cat_x_Factor")
+openxlsx::addWorksheet(wb, "Stage_x_Factor")
 openxlsx::addWorksheet(wb, "Cat_x_Stage")
+openxlsx::addWorksheet(wb, "Cat_x_Stage_x_Factor")
 openxlsx::writeData(wb, "Category_Summary", table_category)
-openxlsx::writeData(wb, "Haddon_Summary", table_haddon)
+openxlsx::writeData(wb, "Factor_Summary", table_factor)
 openxlsx::writeData(wb, "Stage_Summary", table_stage)
-openxlsx::writeData(wb, "Cat_x_Haddon", table_cat_haddon)
-openxlsx::writeData(wb, "Stage_x_Haddon", table_stage_haddon)
+openxlsx::writeData(wb, "Cat_x_Factor", table_cat_factor)
+openxlsx::writeData(wb, "Stage_x_Factor", table_stage_factor)
 openxlsx::writeData(wb, "Cat_x_Stage", table_cat_stage)
+openxlsx::writeData(wb, "Cat_x_Stage_x_Factor", table_cat_stage_factor)
 openxlsx::saveWorkbook(wb, "MobileApp_Haddon_Summaries.xlsx", overwrite = TRUE)
 cat("All summary tables saved to 'MobileApp_Haddon_Summaries.xlsx'\n")
+
