@@ -96,4 +96,8 @@ create_sankey_diagram <- function(
     return(sankey_plot)
   }
 }
-create_sankey_diagram(df, static_export = TRUE, export_file = "sankey.png")
+# to download high-resolution png, follow this:
+# open in html, manually adjust, print pdf
+# open in GIMP, save as png with 900 dpi setting
+
+create_sankey_diagram(df, static_export = F)
