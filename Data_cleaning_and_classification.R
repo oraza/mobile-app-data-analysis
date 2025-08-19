@@ -205,4 +205,124 @@ text_columns_to_search <- c("combined_text")
 df <- apply_secondary_classification(df, text_columns_to_search)
 
 saveRDS(df, "cleaned_appdata_with_haddon.rds")
+
 message("Saved cleaned and classified data as 'cleaned_appdata_with_haddon.rds'")
+
+# ---- 7. Sensitivity Analysis: Unspecified -> Reclassified ----
+
+# Function to re-run classification with different keyword thresholds
+classify_with_threshold <- function(app_description, threshold = 1) {
+  pre_count <- count_keyword_matches_exact(app_description, pre_event_keywords)
+  event_count <- count_keyword_matches_exact(app_description, event_keywords)
+  post_count <- count_keyword_matches_exact(app_description, post_event_keywords)
+  
+  # Apply threshold: only count keywords if they meet threshold
+  pre_flag <- ifelse(pre_count >= threshold, pre_count, 0)
+  event_flag <- ifelse(event_count >= threshold, event_count, 0)
+  post_flag <- ifelse(post_count >= threshold, post_count, 0)
+  
+  max_count <- max(pre_flag, event_flag, post_flag)
+  
+  if (max_count == 0) {
+    return("Unspecified")
+  }
+  
+  stages <- c()
+  if (pre_flag == max_count) stages <- c(stages, "Pre-event")
+  if (event_flag == max_count) stages <- c(stages, "Event")
+  if (post_flag == max_count) stages <- c(stages, "Post-event")
+  
+  return(paste(unique(stages), collapse = " & "))
+}
+
+# Subset: only apps that were reclassified from "Unspecified"
+reclassified_subset <- df %>%
+  dplyr::filter(Stage == "Unspecified") %>%
+  dplyr::mutate(app_id = dplyr::row_number())
+
+# ---- Sensitivity analysis across multiple thresholds ----
+
+thresholds <- 1:5  # the thresholds you want to test
+
+# Apply classification at each threshold
+sensitivity_long <- purrr::map_dfr(thresholds, function(th) {
+  tmp <- reclassified_subset %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(
+      Stage_new = classify_with_threshold(combined_text, threshold = th),
+      threshold = th
+    ) %>%
+    dplyr::ungroup()
+  
+  tmp %>%
+    dplyr::summarise(
+      threshold = unique(threshold),
+      n_total = n(),
+      n_changed = sum(Final_Stage != Stage_new),
+      pct_changed = round(100 * n_changed / n_total, 1)
+    )
+})
+
+print(sensitivity_long)
+# ---- Plot percent changed by threshold ----
+library(ggplot2)
+library(dplyr)
+
+plot_df <- sensitivity_long %>%
+  mutate(
+    threshold   = as.integer(threshold),
+    pct_changed = as.numeric(pct_changed)
+  )
+
+# scaling factor so both series align correctly
+scale_factor <- max(plot_df$n_changed, na.rm = TRUE) / max(plot_df$pct_changed, na.rm = TRUE)
+
+ggplot(plot_df, aes(x = threshold)) +
+  # Bars for counts
+  geom_col(aes(y = n_changed, fill = "Changed (count)"), 
+           width = 0.6, alpha = 1) +
+  
+  # Line + points for % changed
+  geom_line(aes(y = pct_changed * scale_factor, color = "% Changed"), linewidth = 1.3) +
+  geom_point(aes(y = pct_changed * scale_factor, color = "% Changed"), 
+             size = 4, shape = 21, fill = "pink1", stroke = 1) +
+  
+  # Axes
+  scale_x_continuous(breaks = plot_df$threshold) +
+  scale_y_continuous(
+    name = "Number Changed",
+    limits = c(0, max(plot_df$n_changed) * 1.1),
+    sec.axis = sec_axis(~ . / scale_factor,
+                        name = "% Changed",
+                        labels = function(x) paste0(x, "%"),
+                        breaks = seq(0, 55, by = 5))
+  ) +
+  
+  # Colors
+  scale_fill_manual(values = c("Changed (count)" = "green4")) +
+  scale_color_manual(values = c("% Changed" = "darkred")) +
+  
+  # Labels
+  labs(
+    x = "Threshold",
+    title = "Threshold Sensitivity: Counts and Percent Changed",
+    fill = NULL,
+    color = NULL
+  ) +
+  
+  # Theme adjustments
+  theme_minimal(base_size = 15) +
+  theme(
+    legend.position = "top",
+    legend.justification = "center",
+    legend.text = element_text(face = "italic"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    axis.title.y.left  = element_text(face = "italic"),
+    axis.title.y.right = element_text(face = "italic"),
+    axis.title.x  = element_text(face = "bold"),
+    plot.title = element_text(face = "bold", hjust = 0.5)
+  ) +
+  
+  # Ensure both axes fully cover their data
+  expand_limits(y = c(0, max(plot_df$pct_changed, na.rm = TRUE)))
