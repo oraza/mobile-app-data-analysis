@@ -208,7 +208,7 @@ saveRDS(df, "cleaned_appdata_with_haddon.rds")
 
 message("Saved cleaned and classified data as 'cleaned_appdata_with_haddon.rds'")
 
-# ---- 7. Sensitivity Analysis: Unspecified -> Reclassified ----
+# ---- 7a. Sensitivity Analysis: Unspecified -> Reclassified ----
 
 # Function to re-run classification with different keyword thresholds
 classify_with_threshold <- function(app_description, threshold = 1) {
@@ -326,3 +326,59 @@ ggplot(plot_df, aes(x = threshold)) +
   
   # Ensure both axes fully cover their data
   expand_limits(y = c(0, max(plot_df$pct_changed, na.rm = TRUE)))
+
+# ---- 7b. Sensitivity Analysis: full dataset ----
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Function: run multiple perturbations and measure agreement with baseline
+simulate_agreement <- function(text, drop_frac, n_sims = 100) {
+  baseline <- run_perturbation(text, drop_frac = 0)
+  
+  sims <- replicate(
+    n_sims,
+    run_perturbation(text, drop_frac = drop_frac),
+    simplify = TRUE
+  )
+  
+  mean(sims == baseline, na.rm = TRUE)  
+}
+
+# Choose fractions and number of simulations
+drop_fracs <- c(0.05, 0.10, 0.15, 0.20)
+n_sims <- 100  
+
+# Run simulations for all apps and fractions
+agreement_df <- expand.grid(
+  id = 1:nrow(df),
+  drop_frac = drop_fracs
+) %>%
+  rowwise() %>%
+  mutate(
+    agreement = simulate_agreement(df$combined_text[id], drop_frac, n_sims)
+  ) %>%
+  ungroup()
+
+# Summarise across all apps
+summary_df <- agreement_df %>%
+  group_by(drop_frac) %>%
+  summarise(
+    mean_agreement = mean(agreement),
+    sd_agreement   = sd(agreement),
+    .groups = "drop"
+  )
+
+# Plot with error bars
+ggplot(summary_df, aes(x = drop_frac, y = mean_agreement)) +
+  geom_line() +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_agreement - sd_agreement,
+                    ymax = mean_agreement + sd_agreement),
+                width = 0.01) +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(x = "Drop Fraction", y = "Agreement with Baseline",
+       title = "Classification Stability under Keyword Perturbation",
+       subtitle = paste0("Mean ± 1 SD across ", n_sims, " simulations per fraction"))
+
