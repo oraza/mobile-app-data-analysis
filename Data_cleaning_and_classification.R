@@ -277,15 +277,12 @@ plot_df <- sensitivity_long %>%
 # scaling factor so both series align correctly
 scale_factor <- max(plot_df$n_changed, na.rm = TRUE) / max(plot_df$pct_changed, na.rm = TRUE)
 
-ggplot(plot_df, aes(x = threshold)) +
-  # Bars for counts
-  geom_col(aes(y = n_changed, fill = "Changed (count)"), 
+th_sensitivity <- ggplot(plot_df, aes(x = threshold)) + 
+  geom_col(aes(y = n_changed, fill = "Changed (count)"),
            width = 0.6, alpha = 1) +
-  
-  # Line + points for % changed
   geom_line(aes(y = pct_changed * scale_factor, color = "% Changed"), linewidth = 1.3) +
   geom_point(aes(y = pct_changed * scale_factor, color = "% Changed"), 
-             size = 4, shape = 21, fill = "pink1", stroke = 1) +
+             size = 4, shape = 21, fill = "#882222", stroke = 1) +
   
   # Axes
   scale_x_continuous(breaks = plot_df$threshold) +
@@ -297,23 +294,19 @@ ggplot(plot_df, aes(x = threshold)) +
                         labels = function(x) paste0(x, "%"),
                         breaks = seq(0, 55, by = 5))
   ) +
-  
   # Colors
-  scale_fill_manual(values = c("Changed (count)" = "green4")) +
-  scale_color_manual(values = c("% Changed" = "darkred")) +
-  
+  scale_fill_manual(values = c("Changed (count)" = "#999991")) +
+  scale_color_manual(values = c("% Changed" = "#144449")) +
   # Labels
   labs(
     x = "Threshold",
-    title = "Threshold Sensitivity: Counts and Percent Changed",
+    #title = "Threshold Sensitivity: Counts and Percent Changed",
     fill = NULL,
     color = NULL
   ) +
-  
-  # Theme adjustments
   theme_minimal(base_size = 15) +
   theme(
-    legend.position = "top",
+    legend.position = "bottom",
     legend.justification = "center",
     legend.text = element_text(face = "italic"),
     panel.grid.minor = element_blank(),
@@ -323,9 +316,10 @@ ggplot(plot_df, aes(x = threshold)) +
     axis.title.x  = element_text(face = "bold"),
     plot.title = element_text(face = "bold", hjust = 0.5)
   ) +
-  
   # Ensure both axes fully cover their data
   expand_limits(y = c(0, max(plot_df$pct_changed, na.rm = TRUE)))
+ggsave("th_sensitivity.jpg", plot = th_sensitivity, dpi = 600, width = 8, height = 6, units = "in")
+
 
 # ---- 7b. Sensitivity Analysis: full dataset ----
 
