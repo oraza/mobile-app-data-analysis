@@ -68,6 +68,26 @@ table_topapps <- df %>%
   slice_max(Haddon_top_score, n = 3, with_ties = FALSE) %>%
   select(`App name`, UnifiedCategory, Haddon_top_score, Haddon_top_factor)
 
+library(dplyr)
+library(stringr)
+
+price_clean <- df %>%
+  mutate(
+    Price_clean = case_when(
+    # In-app purchase cases (catch both variants with/without space and case-insensitive)
+    str_detect(str_to_lower(Price), "in-?app") ~ "Free with In-App",
+    # Strict "free" cases (ignore case, but avoid capturing "free trial")
+    str_to_lower(Price) %in% c("free", "fREE", "Free") ~ "Free",
+    # "free trial" should be treated as paid
+    str_detect(str_to_lower(Price), "free.*trial") ~ "Paid",
+    # Everything else (numbers, Paid, currency values)
+    TRUE ~ "Paid"
+    )
+    ) %>%
+  count(Price_clean) %>%
+  mutate(percent = scales::percent(n / sum(n)))
+
+
 # ---- Save All Tables to Excel ----
 wb <- openxlsx::createWorkbook()
 openxlsx::addWorksheet(wb, "Category_Summary")
@@ -77,6 +97,7 @@ openxlsx::addWorksheet(wb, "Cat_x_Factor")
 openxlsx::addWorksheet(wb, "Stage_x_Factor")
 openxlsx::addWorksheet(wb, "Cat_x_Stage")
 openxlsx::addWorksheet(wb, "Cat_x_Stage_x_Factor")
+openxlsx::addWorksheet(wb, "App_price")
 openxlsx::writeData(wb, "Category_Summary", table_category)
 openxlsx::writeData(wb, "Factor_Summary", table_factor)
 openxlsx::writeData(wb, "Stage_Summary", table_stage)
@@ -84,6 +105,8 @@ openxlsx::writeData(wb, "Cat_x_Factor", table_cat_factor)
 openxlsx::writeData(wb, "Stage_x_Factor", table_stage_factor)
 openxlsx::writeData(wb, "Cat_x_Stage", table_cat_stage)
 openxlsx::writeData(wb, "Cat_x_Stage_x_Factor", table_cat_stage_factor)
+openxlsx::writeData(wb, "App_price", price_clean)
+
 openxlsx::saveWorkbook(wb, "MobileApp_Haddon_Summaries.xlsx", overwrite = TRUE)
 cat("All summary tables saved to 'MobileApp_Haddon_Summaries.xlsx'\n")
 
