@@ -318,7 +318,7 @@ th_sensitivity <- ggplot(plot_df, aes(x = threshold)) +
   ) +
   # Ensure both axes fully cover their data
   expand_limits(y = c(0, max(plot_df$pct_changed, na.rm = TRUE)))
-ggsave("th_sensitivity.jpg", plot = th_sensitivity, dpi = 600, width = 8, height = 6, units = "in")
+ggsave("Fig3_th_sensitivity.jpg", plot = th_sensitivity, dpi = 600, width = 8, height = 6, units = "in")
 
 
 # ---- 7b. Sensitivity Analysis: full dataset ----
@@ -328,6 +328,33 @@ library(tidyr)
 library(ggplot2)
 
 # Function: run multiple perturbations and measure agreement with baseline
+# defining run_perturbation()
+perturb_keywords <- function(keyword_list, drop_frac = 0.1) {
+  n <- length(keyword_list)
+  drop_n <- ceiling(n * drop_frac)
+  to_drop <- sample(keyword_list, drop_n)
+  return(setdiff(keyword_list, to_drop))
+}
+
+run_perturbation <- function(app_description, drop_frac = 0.1) {
+  pert_pre <- perturb_keywords(pre_event_keywords, drop_frac)
+  pert_event <- perturb_keywords(event_keywords, drop_frac)
+  pert_post <- perturb_keywords(post_event_keywords, drop_frac)
+  
+  pre_count <- count_keyword_matches_exact(app_description, pert_pre)
+  event_count <- count_keyword_matches_exact(app_description, pert_event)
+  post_count <- count_keyword_matches_exact(app_description, pert_post)
+  
+  max_count <- max(pre_count, event_count, post_count)
+  if (max_count == 0) return("Unspecified")
+  
+  stages <- c()
+  if (pre_count == max_count) stages <- c(stages, "Pre-event")
+  if (event_count == max_count) stages <- c(stages, "Event")
+  if (post_count == max_count) stages <- c(stages, "Post-event")
+  
+  return(paste(unique(stages), collapse = " & "))
+}
 simulate_agreement <- function(text, drop_frac, n_sims = 100) {
   baseline <- run_perturbation(text, drop_frac = 0)
   
@@ -345,6 +372,7 @@ drop_fracs <- c(0.05, 0.10, 0.15, 0.20)
 n_sims <- 100  
 
 # Run simulations for all apps and fractions
+set.seed(2025)
 agreement_df <- expand.grid(
   id = 1:nrow(df),
   drop_frac = drop_fracs
